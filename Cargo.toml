@@ -1,0 +1,25 @@
+[package]
+name = "ado-cli"
+version = "0.1.0"
+edition = "2021"
+description = "Azure DevOps CLI for sprint cards / iterations / work items"
+license = "MIT"
+
+[[bin]]
+name = "ado"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+base64 = "0.22"
+clap = { version = "4", features = ["derive"] }
+dotenvy = "0.15"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tabled = "0.16"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
