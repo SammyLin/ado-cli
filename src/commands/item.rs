@@ -90,6 +90,99 @@ pub fn run_update(
     Ok(())
 }
 
+pub fn run_delete(client: &AdoClient, id: u64) -> Result<()> {
+    let url = client.project_url(&format!("wit/workitems/{id}"));
+    client.delete(&url)?;
+    println!("deleted #{id} (moved to recycle bin)");
+    Ok(())
+}
+
+pub fn run_list(
+    client: &AdoClient,
+    assignee: Option<String>,
+    state: Option<String>,
+    work_item_type: Option<String>,
+    iteration: Option<String>,
+    json_out: bool,
+) -> Result<()> {
+    let mut conditions = vec!["[System.TeamProject] = @project".to_string()];
+    if let Some(a) = &assignee {
+        conditions.push(format!("[System.AssignedTo] = '{}'", a.replace('\'', "''")));
+    }
+    if let Some(s) = &state {
+        conditions.push(format!("[System.State] = '{}'", s.replace('\'', "''")));
+    }
+    if let Some(t) = &work_item_type {
+        conditions.push(format!("[System.WorkItemType] = '{}'", t.replace('\'', "''")));
+    }
+    if let Some(it) = &iteration {
+        conditions.push(format!(
+            "[System.IterationPath] UNDER '{}'",
+            it.replace('\'', "''")
+        ));
+    }
+    let wiql = format!(
+        "SELECT [System.Id] FROM WorkItems WHERE {} ORDER BY [System.Id] DESC",
+        conditions.join(" AND ")
+    );
+    let url = client.project_url("wit/wiql");
+    let body = json!({ "query": wiql });
+    let v = client.post_json(&url, &body)?;
+    let ids: Vec<u64> = v
+        .get("workItems")
+        .and_then(|w| w.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|item| item.get("id").and_then(|id| id.as_u64()))
+                .collect()
+        })
+        .unwrap_or_default();
+    if ids.is_empty() {
+        if json_out {
+            println!("[]");
+        } else {
+            eprintln!("No work items found.");
+        }
+        return Ok(());
+    }
+    let batch_body = json!({
+        "ids": ids,
+        "fields": [
+            "System.Id", "System.WorkItemType", "System.Title",
+            "System.State", "System.AssignedTo",
+            "Microsoft.VSTS.Common.Priority"
+        ]
+    });
+    let batch_url = client.project_url("wit/workitemsbatch");
+    let batch_resp = client.post_json(&batch_url, &batch_body)?;
+    let items = batch_resp
+        .get("value")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    if json_out {
+        println!("{}", serde_json::to_string_pretty(&items)?);
+    } else {
+        for w in &items {
+            let id = w.get("id").and_then(|v| v.as_u64()).unwrap_or(0);
+            let f = w.get("fields").cloned().unwrap_or(Value::Null);
+            let title = f.get("System.Title").and_then(|v| v.as_str()).unwrap_or("-");
+            let state = f.get("System.State").and_then(|v| v.as_str()).unwrap_or("-");
+            let wtype = f
+                .get("System.WorkItemType")
+                .and_then(|v| v.as_str())
+                .unwrap_or("-");
+            let who = f
+                .get("System.AssignedTo")
+                .and_then(|a| a.get("displayName"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("-");
+            println!("#{id}  [{wtype}]  {state}  {who}  {title}");
+        }
+    }
+    Ok(())
+}
+
 pub fn run_create(client: &AdoClient, args: CreateArgs, json_out: bool) -> Result<()> {
     if args.titles.is_empty() {
         return Err(anyhow!("at least one --title is required"));

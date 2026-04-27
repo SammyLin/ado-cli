@@ -112,6 +112,27 @@ enum ItemCmd {
         #[arg(long)]
         json: bool,
     },
+    /// Delete a work item (moves to recycle bin).
+    Delete {
+        id: u64,
+    },
+    /// List work items matching filters (uses WIQL).
+    List {
+        /// Filter by assignee (uniqueName, e.g. user@example.com).
+        #[arg(long)]
+        assignee: Option<String>,
+        /// Filter by state (e.g. New, Active, Done, Closed).
+        #[arg(long)]
+        state: Option<String>,
+        /// Filter by work item type (e.g. Task, Bug, "User Story").
+        #[arg(long)]
+        r#type: Option<String>,
+        /// Filter by iteration path.
+        #[arg(long)]
+        iteration: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
     /// Comment operations on a work item.
     Comment {
         #[command(subcommand)]
@@ -218,6 +239,10 @@ fn main() -> Result<()> {
                 &client, id, state, assignee, priority, title, iteration, description, fields,
                 comment, json,
             ),
+            ItemCmd::Delete { id } => commands::item::run_delete(&client, id),
+            ItemCmd::List { assignee, state, r#type, iteration, json } => {
+                commands::item::run_list(&client, assignee, state, r#type, iteration, json)
+            }
         },
     }
 }
