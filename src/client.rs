@@ -79,6 +79,32 @@ impl AdoClient {
         )
     }
 
+    /// PATCH with `application/json` — used by ADO's "update comment" endpoint.
+    pub fn patch_json_body<T: Serialize>(&self, url: &str, body: &T) -> Result<Value> {
+        self.send(
+            self.http
+                .patch(url)
+                .header(CONTENT_TYPE, "application/json")
+                .json(body),
+        )
+    }
+
+    pub fn delete(&self, url: &str) -> Result<()> {
+        let resp = self.http
+            .delete(url)
+            .header(AUTHORIZATION, &self.auth)
+            .header(ACCEPT, "application/json")
+            .send()
+            .context("http send")?;
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().context("read response body")?;
+            let snippet = body.chars().take(500).collect::<String>();
+            return Err(anyhow!("HTTP {}: {}", status, snippet));
+        }
+        Ok(())
+    }
+
     fn send(&self, req: RequestBuilder) -> Result<Value> {
         let resp = req
             .header(AUTHORIZATION, &self.auth)

@@ -57,3 +57,28 @@ pub fn run_add(client: &AdoClient, id: u64, text: &str, json_out: bool) -> Resul
 }
 
 
+
+pub fn run_update(client: &AdoClient, id: u64, comment_id: u64, text: &str, json_out: bool) -> Result<()> {
+    let url = client.project_url_versioned(
+        &format!("wit/workItems/{id}/comments/{comment_id}"),
+        COMMENTS_API_VERSION,
+    );
+    let body = json!({ "text": text });
+    let v = client.patch_json_body(&url, &body)?;
+    if json_out {
+        println!("{}", serde_json::to_string_pretty(&v)?);
+    } else {
+        println!("updated comment {comment_id} on #{id}");
+    }
+    Ok(())
+}
+
+pub fn run_delete(client: &AdoClient, id: u64, comment_id: u64) -> Result<()> {
+    let url = client.project_url_versioned(
+        &format!("wit/workItems/{id}/comments/{comment_id}"),
+        COMMENTS_API_VERSION,
+    );
+    client.delete(&url)?;
+    println!("deleted comment {comment_id} on #{id}");
+    Ok(())
+}

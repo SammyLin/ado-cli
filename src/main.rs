@@ -135,6 +135,24 @@ enum CommentCmd {
         #[arg(long)]
         json: bool,
     },
+    /// Update an existing comment.
+    Update {
+        id: u64,
+        /// Comment ID to update.
+        #[arg(long)]
+        comment_id: u64,
+        #[arg(long, required = true)]
+        text: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Delete a comment.
+    Delete {
+        id: u64,
+        /// Comment ID to delete.
+        #[arg(long)]
+        comment_id: u64,
+    },
 }
 
 fn main() -> Result<()> {
@@ -177,6 +195,12 @@ fn main() -> Result<()> {
                 CommentCmd::List { id, json } => commands::comment::run_list(&client, id, json),
                 CommentCmd::Add { id, text, json } => {
                     commands::comment::run_add(&client, id, &text, json)
+                }
+                CommentCmd::Update { id, comment_id, text, json } => {
+                    commands::comment::run_update(&client, id, comment_id, &text, json)
+                }
+                CommentCmd::Delete { id, comment_id } => {
+                    commands::comment::run_delete(&client, id, comment_id)
                 }
             },
             ItemCmd::Update {
