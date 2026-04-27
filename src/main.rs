@@ -10,7 +10,7 @@ use crate::config::Config;
 
 #[derive(Parser)]
 #[command(
-    name = "ado",
+    name = "ado-cli",
     about = "Azure DevOps CLI — sprint cards, iterations, work items",
     version
 )]

@@ -33,7 +33,7 @@ jobs:
       - name: Package
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../${{ matrix.name }}.tar.gz ado
+          tar czf ../../../${{ matrix.name }}.tar.gz ado-cli
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
@@ -96,11 +96,11 @@ jobs:
             end
 
             def install
-              bin.install "ado"
+              bin.install "ado-cli"
             end
 
             test do
-              assert_match "ado", shell_output("#{bin}/ado --version")
+              assert_match "ado-cli", shell_output("#{bin}/ado-cli --version")
             end
           end
           FORMULA
