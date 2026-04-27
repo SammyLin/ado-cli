@@ -34,7 +34,7 @@ pub fn run_list(client: &AdoClient, id: u64, json_out: bool) -> Result<()> {
             .unwrap_or("-");
         let text = c.get("text").and_then(|v| v.as_str()).unwrap_or("");
         println!("--- comment {cid}  by {who}  at {when} ---");
-        println!("{}", strip_html(text));
+        println!("{}", super::strip_html(text));
         println!();
     }
     Ok(())
@@ -56,35 +56,4 @@ pub fn run_add(client: &AdoClient, id: u64, text: &str, json_out: bool) -> Resul
     Ok(())
 }
 
-fn strip_html(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut in_tag = false;
-    for c in s.chars() {
-        match c {
-            '<' => in_tag = true,
-            '>' => in_tag = false,
-            _ if !in_tag => out.push(c),
-            _ => {}
-        }
-    }
-    out.replace("&nbsp;", " ")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn strip_html_nested_tags() {
-        assert_eq!(strip_html("<div><p>text</p></div>"), "text");
-    }
-
-    #[test]
-    fn strip_html_entities() {
-        assert_eq!(strip_html("&amp;&lt;&gt;&quot;&nbsp;"), "&<>\" ");
-    }
-}

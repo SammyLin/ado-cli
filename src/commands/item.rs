@@ -264,64 +264,20 @@ fn print_human(v: &Value) {
     println!("SP={sp}  Priority={pri}");
 
     if let Some(desc) = f.get("System.Description").and_then(|v| v.as_str()) {
-        println!("\n--- Description ---\n{}", strip_html(desc));
+        println!("\n--- Description ---\n{}", super::strip_html(desc));
     }
     if let Some(ac) = f
         .get("Microsoft.VSTS.Common.AcceptanceCriteria")
         .and_then(|v| v.as_str())
     {
-        println!("\n--- Acceptance Criteria ---\n{}", strip_html(ac));
+        println!("\n--- Acceptance Criteria ---\n{}", super::strip_html(ac));
     }
 }
 
-/// Crude HTML → text: drop tags, decode common entities. ADO descriptions are short
-/// and a real HTML parser is overkill for terminal preview.
-fn strip_html(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut in_tag = false;
-    for c in s.chars() {
-        match c {
-            '<' => in_tag = true,
-            '>' => in_tag = false,
-            _ if !in_tag => out.push(c),
-            _ => {}
-        }
-    }
-    out.replace("&nbsp;", " ")
-        .replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn strip_html_removes_tags() {
-        assert_eq!(strip_html("<p>hello <b>world</b></p>"), "hello world");
-    }
-
-    #[test]
-    fn strip_html_decodes_entities() {
-        assert_eq!(strip_html("a &amp; b &lt; c &gt; d"), "a & b < c > d");
-    }
-
-    #[test]
-    fn strip_html_nbsp() {
-        assert_eq!(strip_html("foo&nbsp;bar"), "foo bar");
-    }
-
-    #[test]
-    fn strip_html_quot() {
-        assert_eq!(strip_html("say &quot;hi&quot;"), "say \"hi\"");
-    }
-
-    #[test]
-    fn strip_html_plain_text_passthrough() {
-        assert_eq!(strip_html("no tags here"), "no tags here");
-    }
 
     #[test]
     fn urlencoding_path_preserves_comma() {
