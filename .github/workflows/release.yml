@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: ado-darwin-arm64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: ado-darwin-amd64
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: ado-linux-amd64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release --target ${{ matrix.target }}
+      - name: Package
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf ../../../${{ matrix.name }}.tar.gz ado
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: '*.tar.gz'
+          generate_release_notes: true
+
+  update-tap:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Compute SHA256
+        id: sha
+        run: |
+          echo "darwin_arm64=$(sha256sum ado-darwin-arm64.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "darwin_amd64=$(sha256sum ado-darwin-amd64.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "linux_amd64=$(sha256sum ado-linux-amd64.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Update Homebrew formula
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cat > formula.rb << 'FORMULA'
+          class AdoCli < Formula
+            desc "Azure DevOps CLI for sprint cards, iterations, and work items"
+            homepage "https://github.com/SammyLin/ado-cli"
+            version "VERSION_PLACEHOLDER"
+            license "MIT"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/SammyLin/ado-cli/releases/download/vVERSION_PLACEHOLDER/ado-darwin-arm64.tar.gz"
+                sha256 "SHA_DARWIN_ARM64"
+              end
+              on_intel do
+                url "https://github.com/SammyLin/ado-cli/releases/download/vVERSION_PLACEHOLDER/ado-darwin-amd64.tar.gz"
+                sha256 "SHA_DARWIN_AMD64"
+              end
+            end
+
+            on_linux do
+              on_intel do
+                url "https://github.com/SammyLin/ado-cli/releases/download/vVERSION_PLACEHOLDER/ado-linux-amd64.tar.gz"
+                sha256 "SHA_LINUX_AMD64"
+              end
+            end
+
+            def install
+              bin.install "ado"
+            end
+
+            test do
+              assert_match "ado", shell_output("#{bin}/ado --version")
+            end
+          end
+          FORMULA
+          sed -i "s/VERSION_PLACEHOLDER/$VERSION/g" formula.rb
+          sed -i "s/SHA_DARWIN_ARM64/${{ steps.sha.outputs.darwin_arm64 }}/g" formula.rb
+          sed -i "s/SHA_DARWIN_AMD64/${{ steps.sha.outputs.darwin_amd64 }}/g" formula.rb
+          sed -i "s/SHA_LINUX_AMD64/${{ steps.sha.outputs.linux_amd64 }}/g" formula.rb
+          # Remove leading whitespace from heredoc
+          sed -i 's/^          //' formula.rb
+
+          # Push to homebrew-tap
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/SammyLin/homebrew-tap.git" tap
+          mkdir -p tap/Formula
+          cp formula.rb tap/Formula/ado-cli.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/ado-cli.rb
+          git commit -m "ado-cli ${VERSION}"
+          git push
