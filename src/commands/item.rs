@@ -293,3 +293,43 @@ fn strip_html(s: &str) -> String {
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strip_html_removes_tags() {
+        assert_eq!(strip_html("<p>hello <b>world</b></p>"), "hello world");
+    }
+
+    #[test]
+    fn strip_html_decodes_entities() {
+        assert_eq!(strip_html("a &amp; b &lt; c &gt; d"), "a & b < c > d");
+    }
+
+    #[test]
+    fn strip_html_nbsp() {
+        assert_eq!(strip_html("foo&nbsp;bar"), "foo bar");
+    }
+
+    #[test]
+    fn strip_html_quot() {
+        assert_eq!(strip_html("say &quot;hi&quot;"), "say \"hi\"");
+    }
+
+    #[test]
+    fn strip_html_plain_text_passthrough() {
+        assert_eq!(strip_html("no tags here"), "no tags here");
+    }
+
+    #[test]
+    fn urlencoding_path_preserves_comma() {
+        assert_eq!(urlencoding_path("a,b,c"), "a,b,c");
+    }
+
+    #[test]
+    fn urlencoding_path_encodes_spaces() {
+        assert_eq!(urlencoding_path("a b"), "a%20b");
+    }
+}

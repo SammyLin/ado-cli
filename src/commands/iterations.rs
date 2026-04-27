@@ -70,3 +70,34 @@ fn short_date(d: &str) -> &str {
     // "2026-03-02T00:00:00Z" -> "2026-03-02"
     d.split('T').next().unwrap_or(d)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn short_date_strips_time() {
+        assert_eq!(short_date("2026-03-02T00:00:00Z"), "2026-03-02");
+    }
+
+    #[test]
+    fn short_date_no_t() {
+        assert_eq!(short_date("2026-03-02"), "2026-03-02");
+    }
+
+    #[test]
+    fn format_dates_both_present() {
+        let a = IterationAttrs {
+            start_date: Some("2026-03-01T00:00:00Z".into()),
+            finish_date: Some("2026-03-14T00:00:00Z".into()),
+            time_frame: None,
+        };
+        assert_eq!(format_dates(&a), "2026-03-01 → 2026-03-14");
+    }
+
+    #[test]
+    fn format_dates_missing() {
+        let a = IterationAttrs::default();
+        assert_eq!(format_dates(&a), "- → -");
+    }
+}

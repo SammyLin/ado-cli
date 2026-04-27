@@ -1,5 +1,9 @@
 # ado-cli
 
+[![Tests](https://github.com/SammyLin/ado-cli/actions/workflows/test.yml/badge.svg)](https://github.com/SammyLin/ado-cli/actions/workflows/test.yml)
+[![Rust](https://img.shields.io/badge/Rust-2021-orange)](https://www.rust-lang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Tiny Rust CLI for querying and mutating Azure DevOps work items (sprint cards, iterations, single items, comments).
 
 ## Install

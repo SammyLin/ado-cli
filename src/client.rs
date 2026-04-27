@@ -123,3 +123,80 @@ fn extract_html_title(html: &str) -> Option<String> {
     let end = lower[start..].find("</title>")? + start;
     Some(html[start..end].trim().to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn urlencoding_minimal_plain() {
+        assert_eq!(urlencoding_minimal("hello"), "hello");
+    }
+
+    #[test]
+    fn urlencoding_minimal_spaces() {
+        assert_eq!(urlencoding_minimal("My Team"), "My%20Team");
+    }
+
+    #[test]
+    fn urlencoding_minimal_special_chars() {
+        assert_eq!(urlencoding_minimal("a/b&c"), "a%2Fb%26c");
+    }
+
+    #[test]
+    fn urlencoding_minimal_preserves_unreserved() {
+        assert_eq!(urlencoding_minimal("a-b_c.d~e"), "a-b_c.d~e");
+    }
+
+    #[test]
+    fn extract_html_title_basic() {
+        let html = "<html><head><title>Access Denied</title></head></html>";
+        assert_eq!(extract_html_title(html), Some("Access Denied".into()));
+    }
+
+    #[test]
+    fn extract_html_title_case_insensitive() {
+        let html = "<HTML><HEAD><TITLE>Error Page</TITLE></HEAD></HTML>";
+        assert_eq!(extract_html_title(html), Some("Error Page".into()));
+    }
+
+    #[test]
+    fn extract_html_title_none_when_missing() {
+        assert_eq!(extract_html_title("<html><body>no title</body></html>"), None);
+    }
+
+    #[test]
+    fn extract_html_title_trims_whitespace() {
+        let html = "<title>  Spaced  </title>";
+        assert_eq!(extract_html_title(html), Some("Spaced".into()));
+    }
+
+    #[test]
+    fn project_url_format() {
+        let cfg = Config {
+            org: "MyOrg".into(),
+            project: "MyProj".into(),
+            team: "T".into(),
+            pat: "fake".into(),
+        };
+        let client = AdoClient::new(cfg).unwrap();
+        assert_eq!(
+            client.project_url("wit/workitems/1"),
+            "https://dev.azure.com/MyOrg/MyProj/_apis/wit/workitems/1?api-version=7.1"
+        );
+    }
+
+    #[test]
+    fn team_url_encodes_spaces() {
+        let cfg = Config {
+            org: "O".into(),
+            project: "P".into(),
+            team: "My Team".into(),
+            pat: "x".into(),
+        };
+        let client = AdoClient::new(cfg).unwrap();
+        let url = client.team_url("work/teamsettings/iterations");
+        assert!(url.contains("/My%20Team/"));
+        assert!(url.ends_with("?api-version=7.1"));
+    }
+}

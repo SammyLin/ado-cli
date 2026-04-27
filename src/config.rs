@@ -39,3 +39,26 @@ fn require(key: &str) -> Result<String> {
             }
         })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn require_missing_var() {
+        env::remove_var("ADO_TEST_MISSING_XYZ");
+        assert!(require("ADO_TEST_MISSING_XYZ").is_err());
+    }
+
+    #[test]
+    fn require_empty_var() {
+        env::set_var("ADO_TEST_EMPTY", "  ");
+        assert!(require("ADO_TEST_EMPTY").is_err());
+    }
+
+    #[test]
+    fn require_present_var() {
+        env::set_var("ADO_TEST_OK", "value");
+        assert_eq!(require("ADO_TEST_OK").unwrap(), "value");
+    }
+}

@@ -73,3 +73,18 @@ fn strip_html(s: &str) -> String {
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strip_html_nested_tags() {
+        assert_eq!(strip_html("<div><p>text</p></div>"), "text");
+    }
+
+    #[test]
+    fn strip_html_entities() {
+        assert_eq!(strip_html("&amp;&lt;&gt;&quot;&nbsp;"), "&<>\" ");
+    }
+}
