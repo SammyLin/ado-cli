@@ -1,6 +1,6 @@
 ---
 name: ado-cli
-description: Query AND mutate Azure DevOps work items (sprint cards, iterations, single items with description + acceptance criteria, plus create / comment) via the local `ado` CLI. Use when the user asks about "sprint 卡片" / "ADO 卡片" / "current sprint" / "iteration" / "work item #N" / a `dev.azure.com` URL, OR wants to break a story into Tasks ("拆 task" / "建 task under #N"), OR add/read a comment on a card. The `ado` binary wraps the ADO REST API and reads `ADO_ORG`/`ADO_PROJECT`/`ADO_TEAM`/`ADO_PAT` from env or a `.env` file in the cwd (or any parent dir).
+description: Query AND mutate Azure DevOps work items (sprint cards, iterations, single items with description + acceptance criteria, plus create / update / delete / list / comment CRUD) via the local `ado` CLI. Use when the user asks about "sprint 卡片" / "ADO 卡片" / "current sprint" / "iteration" / "work item #N" / a `dev.azure.com` URL, OR wants to break a story into Tasks ("拆 task" / "建 task under #N"), OR update/close/delete a card, OR add/read a comment on a card. The `ado` binary wraps the ADO REST API and reads `ADO_ORG`/`ADO_PROJECT`/`ADO_TEAM`/`ADO_PAT` from env or a `.env` file in the cwd (or any parent dir).
 ---
 
 # ado-cli skill
@@ -55,6 +55,14 @@ Output columns: `ID | TYPE | STATE | SP | PRI | ASSIGNEE | TITLE`. Use `--json` 
 #### `ado item show <id> [--json]`
 Shows a single work item with its description and acceptance criteria (HTML stripped to plain text). Use this after `sprint list` when the user wants details on a specific card. Use `--json` if you need raw fields (relations, identity descriptors, etc.).
 
+#### `ado item list [--assignee <EMAIL>] [--state <STATE>] [--type <TYPE>] [--iteration <PATH>] [--json]`
+Search work items using WIQL with optional filters. All filters are AND-combined. Without filters, lists all items in the project (descending by ID).
+
+Examples:
+- `ado item list --assignee user@example.com --state Active` — my active items
+- `ado item list --type Task --state Closed` — all closed tasks
+- `ado item list --iteration 'MyProject\Sprint 1'` — items under an iteration (uses UNDER, so sub-iterations match too)
+
 #### `ado item comment list <id> [--json]`
 Lists comments on a work item, oldest first.
 
@@ -87,14 +95,33 @@ Options:
 - `--comment <STR>` — also append a comment after the update succeeds (reuses existing comment logic).
 - `--json` — emit the raw PATCH response.
 
+#### `ado item delete <id>`
+Deletes a work item (moves to recycle bin). Use when a task was created by mistake.
+
 #### `ado item comment add <id> --text "<TEXT>"`
 Adds one comment. ADO accepts plain text or HTML. Use this for audit trails when breaking down a story (link the new task IDs back to the parent).
+
+#### `ado item comment update <id> --comment-id <N> --text "<TEXT>"`
+Updates an existing comment's text.
+
+#### `ado item comment delete <id> --comment-id <N>`
+Deletes a comment.
 
 ## Recipes
 
 **"Close #1202 with audit comment"**
 ```
 ado item update 1202 --state Done --comment "Done — see commits afc9d42, f536e55, 71ae422"
+```
+
+**"Find all my active items"**
+```
+ado item list --assignee user@example.com --state Active
+```
+
+**"Delete a mistakenly created task"**
+```
+ado item delete 1205
 ```
 
 **"What cards are in the current sprint?"**
@@ -162,6 +189,5 @@ When the user asks to "拆 #N into tasks":
 
 ## Out of scope (do NOT improvise)
 
-- Deleting existing work items — only `create`, `update`, and `comment add` are implemented. If the user asks to delete a work item, say so and offer to extend `~/workspace/ado-cli`.
 - Cross-team queries — `ADO_TEAM` targets a single team. To query another team, override the env var for that call.
-- Attachments, history — not implemented. Source at `~/workspace/ado-cli` if needed.
+- Attachments, history, linking — not implemented. Source at `~/workspace/ado-cli` if needed.
