@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use serde_json::{json, Value};
 
-use crate::client::AdoClient;
+use crate::client::{urlencoding_minimal, AdoClient};
 
 pub fn run_show(client: &AdoClient, id: u64, json_out: bool) -> Result<()> {
     let url = client.project_url(&format!("wit/workitems/{id}"));
@@ -28,39 +28,43 @@ pub struct CreateArgs {
     pub area: Option<String>,
 }
 
+pub struct UpdateArgs {
+    pub state: Option<String>,
+    pub assignee: Option<String>,
+    pub priority: Option<i64>,
+    pub title: Option<String>,
+    pub iteration: Option<String>,
+    pub description: Option<String>,
+    pub fields: Vec<String>,
+    pub comment: Option<String>,
+}
+
 pub fn run_update(
     client: &AdoClient,
     id: u64,
-    state: Option<String>,
-    assignee: Option<String>,
-    priority: Option<i64>,
-    title: Option<String>,
-    iteration: Option<String>,
-    description: Option<String>,
-    fields: Vec<String>,
-    comment: Option<String>,
+    args: UpdateArgs,
     json_out: bool,
 ) -> Result<()> {
     let mut ops: Vec<Value> = Vec::new();
-    if let Some(v) = &state {
+    if let Some(v) = &args.state {
         ops.push(json!({ "op": "add", "path": "/fields/System.State", "value": v }));
     }
-    if let Some(v) = &assignee {
+    if let Some(v) = &args.assignee {
         ops.push(json!({ "op": "add", "path": "/fields/System.AssignedTo", "value": v }));
     }
-    if let Some(v) = priority {
+    if let Some(v) = args.priority {
         ops.push(json!({ "op": "add", "path": "/fields/Microsoft.VSTS.Common.Priority", "value": v }));
     }
-    if let Some(v) = &title {
+    if let Some(v) = &args.title {
         ops.push(json!({ "op": "add", "path": "/fields/System.Title", "value": v }));
     }
-    if let Some(v) = &iteration {
+    if let Some(v) = &args.iteration {
         ops.push(json!({ "op": "add", "path": "/fields/System.IterationPath", "value": v }));
     }
-    if let Some(v) = &description {
+    if let Some(v) = &args.description {
         ops.push(json!({ "op": "add", "path": "/fields/System.Description", "value": v }));
     }
-    for f in &fields {
+    for f in &args.fields {
         let (key, val) = f
             .split_once('=')
             .ok_or_else(|| anyhow!("--field must be key=value, got: {f}"))?;
@@ -84,7 +88,7 @@ pub fn run_update(
         println!("updated #{id}  State={new_state}");
     }
 
-    if let Some(text) = &comment {
+    if let Some(text) = &args.comment {
         crate::commands::comment::run_add(client, id, text, json_out)?;
     }
     Ok(())
@@ -213,14 +217,16 @@ pub fn run_create(client: &AdoClient, args: CreateArgs, json_out: bool) -> Resul
     for title in &args.titles {
         let v = create_single(
             client,
-            &args.work_item_type,
-            title,
-            args.parent,
-            args.description.as_deref(),
-            args.assignee.as_deref(),
-            args.priority,
-            iteration.as_deref(),
-            area.as_deref(),
+            CreateSingleArgs {
+                work_item_type: &args.work_item_type,
+                title,
+                parent_id: args.parent,
+                description: args.description.as_deref(),
+                assignee: args.assignee.as_deref(),
+                priority: args.priority,
+                iteration: iteration.as_deref(),
+                area: area.as_deref(),
+            },
         )
         .with_context(|| format!("create work item: {title}"))?;
         created.push(v);
@@ -242,40 +248,41 @@ pub fn run_create(client: &AdoClient, args: CreateArgs, json_out: bool) -> Resul
     Ok(())
 }
 
-fn create_single(
-    client: &AdoClient,
-    work_item_type: &str,
-    title: &str,
+struct CreateSingleArgs<'a> {
+    work_item_type: &'a str,
+    title: &'a str,
     parent_id: Option<u64>,
-    description: Option<&str>,
-    assignee: Option<&str>,
+    description: Option<&'a str>,
+    assignee: Option<&'a str>,
     priority: Option<i64>,
-    iteration: Option<&str>,
-    area: Option<&str>,
-) -> Result<Value> {
+    iteration: Option<&'a str>,
+    area: Option<&'a str>,
+}
+
+fn create_single(client: &AdoClient, args: CreateSingleArgs<'_>) -> Result<Value> {
     let mut ops: Vec<Value> = Vec::new();
-    ops.push(json!({ "op": "add", "path": "/fields/System.Title", "value": title }));
-    if let Some(d) = description {
+    ops.push(json!({ "op": "add", "path": "/fields/System.Title", "value": args.title }));
+    if let Some(d) = args.description {
         ops.push(json!({ "op": "add", "path": "/fields/System.Description", "value": d }));
     }
-    if let Some(a) = assignee {
+    if let Some(a) = args.assignee {
         ops.push(json!({ "op": "add", "path": "/fields/System.AssignedTo", "value": a }));
     }
-    if let Some(p) = priority {
+    if let Some(p) = args.priority {
         ops.push(
             json!({ "op": "add", "path": "/fields/Microsoft.VSTS.Common.Priority", "value": p }),
         );
     }
-    if let Some(it) = iteration {
+    if let Some(it) = args.iteration {
         ops.push(json!({ "op": "add", "path": "/fields/System.IterationPath", "value": it }));
     }
-    if let Some(ar) = area {
+    if let Some(ar) = args.area {
         ops.push(json!({ "op": "add", "path": "/fields/System.AreaPath", "value": ar }));
     }
-    if let Some(pid) = parent_id {
+    if let Some(pid) = args.parent_id {
         let parent_url = format!(
             "https://dev.azure.com/{}/_apis/wit/workItems/{}",
-            client_org(client),
+            client.org(),
             pid
         );
         ops.push(json!({
@@ -288,41 +295,16 @@ fn create_single(
         }));
     }
 
-    // ADO's "$Type" prefix is literal — percent-encoded for safety.
-    let url = client.project_url(&format!("wit/workitems/%24{work_item_type}"));
+    let url = client.project_url(&format!("wit/workitems/%24{}", args.work_item_type));
     client.post_patch(&url, &Value::Array(ops))
 }
 
 fn fetch_item_fields(client: &AdoClient, id: u64, fields: &[&str]) -> Result<Value> {
-    let fields_param = urlencoding_path(&fields.join(","));
+    let fields_param = urlencoding_minimal(&fields.join(","));
     let base = client.project_url(&format!("wit/workitems/{id}"));
     let url = format!("{base}&fields={fields_param}");
     let v = client.get(&url)?;
     Ok(v.get("fields").cloned().unwrap_or(Value::Null))
-}
-
-fn client_org(client: &AdoClient) -> String {
-    // Extract org from any project URL — cheaper than re-exposing config.
-    let probe = client.project_url("");
-    // probe = "https://dev.azure.com/<org>/<project>/_apis/?api-version=7.1"
-    probe
-        .strip_prefix("https://dev.azure.com/")
-        .and_then(|s| s.split('/').next())
-        .unwrap_or("")
-        .to_string()
-}
-
-fn urlencoding_path(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for b in s.bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b',' => {
-                out.push(b as char);
-            }
-            _ => out.push_str(&format!("%{:02X}", b)),
-        }
-    }
-    out
 }
 
 fn print_human(v: &Value) {
@@ -370,15 +352,4 @@ fn print_human(v: &Value) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[test]
-    fn urlencoding_path_preserves_comma() {
-        assert_eq!(urlencoding_path("a,b,c"), "a,b,c");
-    }
-
-    #[test]
-    fn urlencoding_path_encodes_spaces() {
-        assert_eq!(urlencoding_path("a b"), "a%20b");
-    }
 }

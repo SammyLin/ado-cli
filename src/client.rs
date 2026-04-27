@@ -126,15 +126,19 @@ impl AdoClient {
         }
         serde_json::from_str(&body).with_context(|| format!("parse JSON: {body:.200}"))
     }
+
+    pub fn org(&self) -> &str {
+        &self.cfg.org
+    }
 }
 
 /// Minimal percent-encoder for path segments — enough to handle spaces in team names.
 /// We stay conservative: only encode characters that ADO is sensitive to.
-fn urlencoding_minimal(s: &str) -> String {
+pub fn urlencoding_minimal(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b',' => {
                 out.push(b as char);
             }
             _ => out.push_str(&format!("%{:02X}", b)),
@@ -172,6 +176,11 @@ mod tests {
     #[test]
     fn urlencoding_minimal_preserves_unreserved() {
         assert_eq!(urlencoding_minimal("a-b_c.d~e"), "a-b_c.d~e");
+    }
+
+    #[test]
+    fn urlencoding_minimal_preserves_comma() {
+        assert_eq!(urlencoding_minimal("a,b,c"), "a,b,c");
     }
 
     #[test]

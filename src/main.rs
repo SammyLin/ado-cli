@@ -236,8 +236,19 @@ fn main() -> Result<()> {
                 comment,
                 json,
             } => commands::item::run_update(
-                &client, id, state, assignee, priority, title, iteration, description, fields,
-                comment, json,
+                &client,
+                id,
+                commands::item::UpdateArgs {
+                    state,
+                    assignee,
+                    priority,
+                    title,
+                    iteration,
+                    description,
+                    fields,
+                    comment,
+                },
+                json,
             ),
             ItemCmd::Delete { id } => commands::item::run_delete(&client, id),
             ItemCmd::List { assignee, state, r#type, iteration, json } => {
