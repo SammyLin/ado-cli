@@ -369,7 +369,9 @@ fn run_init() -> Result<()> {
     }
     std::fs::write(path, &content)?;
     println!("wrote {CONFIG_FILE}");
-    println!("hint: add {CONFIG_FILE} to .gitignore (it contains your PAT)");
+    println!();
+    println!("⚠ {CONFIG_FILE} contains your PAT — do NOT commit it.");
+    println!("  Run: echo '{CONFIG_FILE}' >> .gitignore");
     Ok(())
 }
 
