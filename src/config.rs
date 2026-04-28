@@ -27,6 +27,7 @@ impl Config {
     /// Load config: .ado.toml (walk up dirs) → env vars as fallback per field.
     pub fn load() -> Result<Self> {
         let toml_cfg = find_config_file().and_then(|p| load_toml(&p).ok());
+        let has_toml = toml_cfg.is_some();
 
         let get = |toml_val: Option<&str>, env_key: &str| -> Result<String> {
             if let Some(v) = toml_val.filter(|s| !s.trim().is_empty()) {
@@ -35,7 +36,17 @@ impl Config {
             // Legacy .env fallback
             let _ = dotenvy::dotenv();
             env::var(env_key)
-                .with_context(|| format!("missing {env_key} (set in {CONFIG_FILE} or env)"))
+                .map_err(|_| {
+                    if has_toml {
+                        anyhow!("missing `{}` in {CONFIG_FILE} (and env var {env_key} not set)",
+                            env_key.strip_prefix("ADO_").unwrap_or(env_key).to_lowercase())
+                    } else {
+                        anyhow!(
+                            "no {CONFIG_FILE} found. Run `ado-cli init` to create one, \
+                             or set env var {env_key}"
+                        )
+                    }
+                })
                 .and_then(|v| {
                     if v.trim().is_empty() {
                         Err(anyhow!("{env_key} is empty"))
