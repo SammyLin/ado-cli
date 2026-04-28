@@ -130,6 +130,10 @@ impl AdoClient {
     pub fn org(&self) -> &str {
         &self.cfg.org
     }
+
+    pub fn repo(&self) -> Option<&str> {
+        self.cfg.repo.as_deref()
+    }
 }
 
 /// Minimal percent-encoder for path segments — enough to handle spaces in team names.
@@ -213,6 +217,7 @@ mod tests {
             project: "MyProj".into(),
             team: "T".into(),
             pat: "fake".into(),
+            repo: None,
         };
         let client = AdoClient::new(cfg).unwrap();
         assert_eq!(
@@ -228,6 +233,7 @@ mod tests {
             project: "P".into(),
             team: "My Team".into(),
             pat: "x".into(),
+            repo: None,
         };
         let client = AdoClient::new(cfg).unwrap();
         let url = client.team_url("work/teamsettings/iterations");

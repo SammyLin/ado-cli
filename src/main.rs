@@ -209,9 +209,9 @@ enum LinkCmd {
     /// Link a commit to a work item.
     AddCommit {
         id: u64,
-        /// Repository name in Azure DevOps.
+        /// Repository name in Azure DevOps. Defaults to `repo` in .ado.toml.
         #[arg(long)]
-        repo: String,
+        repo: Option<String>,
         /// Commit SHA (full or prefix).
         #[arg(long)]
         commit: String,
@@ -324,7 +324,11 @@ fn main() -> Result<()> {
                     commands::link::run_add(&client, id, target, &link_type, comment.as_deref(), json)
                 }
                 LinkCmd::AddCommit { id, repo, commit, comment, json } => {
-                    commands::link::run_add_commit(&client, id, &repo, &commit, comment.as_deref(), json)
+                    let repo = repo
+                        .as_deref()
+                        .or(client.repo())
+                        .ok_or_else(|| anyhow::anyhow!("--repo is required (or set `repo` in .ado.toml)"))?;
+                    commands::link::run_add_commit(&client, id, repo, &commit, comment.as_deref(), json)
                 }
                 LinkCmd::Remove { id, target, link_type } => {
                     commands::link::run_remove(&client, id, target, &link_type)
@@ -355,10 +359,14 @@ fn run_init() -> Result<()> {
     let project = prompt("Project (ADO_PROJECT)")?;
     let team = prompt("Team (ADO_TEAM)")?;
     let pat = prompt("Personal Access Token (ADO_PAT)")?;
+    let repo = prompt_optional("Default repo name (optional, press Enter to skip)")?;
 
-    let content = format!(
+    let mut content = format!(
         "org = \"{org}\"\nproject = \"{project}\"\nteam = \"{team}\"\npat = \"{pat}\"\n"
     );
+    if let Some(r) = &repo {
+        content.push_str(&format!("repo = \"{r}\"\n"));
+    }
     std::fs::write(path, &content)?;
     println!("wrote {CONFIG_FILE}");
     println!("hint: add {CONFIG_FILE} to .gitignore (it contains your PAT)");
@@ -376,4 +384,14 @@ fn prompt(label: &str) -> Result<String> {
         return Err(anyhow::anyhow!("{label} cannot be empty"));
     }
     Ok(val)
+}
+
+fn prompt_optional(label: &str) -> Result<Option<String>> {
+    use std::io::{self, BufRead, Write};
+    eprint!("{label}: ");
+    io::stderr().flush()?;
+    let mut line = String::new();
+    io::stdin().lock().read_line(&mut line)?;
+    let val = line.trim().to_string();
+    Ok(if val.is_empty() { None } else { Some(val) })
 }

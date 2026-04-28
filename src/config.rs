@@ -11,6 +11,7 @@ pub struct Config {
     pub project: String,
     pub team: String,
     pub pat: String,
+    pub repo: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -19,6 +20,7 @@ struct TomlConfig {
     project: Option<String>,
     team: Option<String>,
     pat: Option<String>,
+    repo: Option<String>,
 }
 
 impl Config {
@@ -49,6 +51,7 @@ impl Config {
             project: get(tc.and_then(|c| c.project.as_deref()), "ADO_PROJECT")?,
             team: get(tc.and_then(|c| c.team.as_deref()), "ADO_TEAM")?,
             pat: get(tc.and_then(|c| c.pat.as_deref()), "ADO_PAT")?,
+            repo: tc.and_then(|c| c.repo.clone()).filter(|s| !s.trim().is_empty()),
         })
     }
 }
