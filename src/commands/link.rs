@@ -153,3 +153,46 @@ pub fn run_remove(client: &AdoClient, id: u64, target: u64, link_type: &str) -> 
     println!("removed {link_type} link: #{id} → #{target}");
     Ok(())
 }
+
+pub fn run_add_commit(
+    client: &AdoClient,
+    id: u64,
+    repo: &str,
+    commit: &str,
+    comment: Option<&str>,
+    json_out: bool,
+) -> Result<()> {
+    // Look up repo to get projectId and repoId.
+    let repo_url = client.project_url(&format!("git/repositories/{repo}"));
+    let repo_info = client.get(&repo_url)?;
+    let repo_id = repo_info
+        .get("id")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow!("could not resolve repo '{repo}'"))?;
+    let project_id = repo_info
+        .get("project")
+        .and_then(|p| p.get("id"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow!("could not resolve projectId for repo '{repo}'"))?;
+
+    let artifact_url = format!("vstfs:///Git/Commit/{project_id}/{repo_id}/{commit}");
+    let mut link_value = json!({
+        "rel": "ArtifactLink",
+        "url": artifact_url,
+        "attributes": {
+            "name": "Fixed in Commit"
+        }
+    });
+    if let Some(c) = comment {
+        link_value["attributes"]["comment"] = json!(c);
+    }
+    let ops = json!([{ "op": "add", "path": "/relations/-", "value": link_value }]);
+    let url = client.project_url(&format!("wit/workitems/{id}"));
+    let v = client.patch_json(&url, &ops)?;
+    if json_out {
+        println!("{}", serde_json::to_string_pretty(&v)?);
+    } else {
+        println!("added commit link: #{id} → {repo}/{}", &commit[..commit.len().min(8)]);
+    }
+    Ok(())
+}

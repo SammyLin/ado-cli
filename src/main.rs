@@ -204,6 +204,21 @@ enum LinkCmd {
         #[arg(long)]
         json: bool,
     },
+    /// Link a commit to a work item.
+    AddCommit {
+        id: u64,
+        /// Repository name in Azure DevOps.
+        #[arg(long)]
+        repo: String,
+        /// Commit SHA (full or prefix).
+        #[arg(long)]
+        commit: String,
+        /// Optional comment on the link.
+        #[arg(long)]
+        comment: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
     /// Remove a link between two work items.
     Remove {
         id: u64,
@@ -298,6 +313,9 @@ fn main() -> Result<()> {
                 LinkCmd::List { id, json } => commands::link::run_list(&client, id, json),
                 LinkCmd::Add { id, target, link_type, comment, json } => {
                     commands::link::run_add(&client, id, target, &link_type, comment.as_deref(), json)
+                }
+                LinkCmd::AddCommit { id, repo, commit, comment, json } => {
+                    commands::link::run_add_commit(&client, id, &repo, &commit, comment.as_deref(), json)
                 }
                 LinkCmd::Remove { id, target, link_type } => {
                     commands::link::run_remove(&client, id, target, &link_type)

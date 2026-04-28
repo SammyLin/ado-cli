@@ -121,6 +121,9 @@ Available link types: `parent`, `child`, `related`, `duplicate`, `duplicate-of`,
 #### `ado-cli item link remove <id> --target <TARGET_ID> --type <TYPE>`
 Removes a link. The CLI fetches the work item's relations, finds the matching link by type + target URL, and issues a `remove` patch at the correct index.
 
+#### `ado-cli item link add-commit <id> --repo <REPO_NAME> --commit <SHA> [--comment <TEXT>] [--json]`
+Links a Git commit to a work item. The CLI resolves the repo name to its GUID via the ADO Git API, then creates an `ArtifactLink` relation with the `vstfs:///Git/Commit/...` URL. You only need the repo name and commit SHA.
+
 ## Recipes
 
 **"Close #1202 with audit comment"**
@@ -192,6 +195,11 @@ ado-cli item link remove 1196 --target 1200 --type related
 **"List all links on #1196"**
 ```
 ado-cli item link list 1196
+```
+
+**"Link a commit to #1225"**
+```
+ado-cli item link add-commit 1225 --repo ifrs-web --commit abc123def --comment 'fix: login dialog'
 ```
 
 **"List Sprint 2 cards"**

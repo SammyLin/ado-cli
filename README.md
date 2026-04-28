@@ -128,6 +128,8 @@ ado-cli item link add 1196 --target 1200 --type related             # add relate
 ado-cli item link add 1196 --target 1200 --type child               # add child link
 ado-cli item link add 1196 --target 1200 --type parent              # add parent link
 ado-cli item link add 1196 --target 1200 --type related --comment 'See also'  # with comment
+ado-cli item link add-commit 1225 --repo ifrs-web --commit abc123   # link a commit
+ado-cli item link add-commit 1225 --repo ifrs-web --commit abc123 --comment 'fix'
 ado-cli item link remove 1196 --target 1200 --type related          # remove link
 ```
 
@@ -187,6 +189,7 @@ ado-cli/
 | `ado-cli item comment delete <id> --comment-id <n>` | Delete a comment |
 | `ado-cli item link list <id>` | List links on a work item |
 | `ado-cli item link add <id> --target <n> --type <t>` | Add a link to another work item |
+| `ado-cli item link add-commit <id> --repo <r> --commit <sha>` | Link a commit to a work item |
 | `ado-cli item link remove <id> --target <n> --type <t>` | Remove a link |
 
 All read/write commands accept `--json` for machine-readable output.
