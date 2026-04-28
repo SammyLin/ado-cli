@@ -38,6 +38,8 @@ cd ado-cli
 cargo install --path .
 ```
 
+> **Note:** If you have both Homebrew and cargo installs, your `PATH` order determines which one runs. Use `which ado-cli` to check. To avoid conflicts, pick one installation method.
+
 ## Configuration
 
 Run `ado-cli init` to create a `.ado.toml` in the current directory:

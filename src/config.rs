@@ -28,6 +28,7 @@ impl Config {
     pub fn load() -> Result<Self> {
         let toml_cfg = find_config_file().and_then(|p| load_toml(&p).ok());
         let has_toml = toml_cfg.is_some();
+        let searched = if has_toml { String::new() } else { searched_dirs() };
 
         let get = |toml_val: Option<&str>, env_key: &str| -> Result<String> {
             if let Some(v) = toml_val.filter(|s| !s.trim().is_empty()) {
@@ -42,8 +43,8 @@ impl Config {
                             env_key.strip_prefix("ADO_").unwrap_or(env_key).to_lowercase())
                     } else {
                         anyhow!(
-                            "no {CONFIG_FILE} found. Run `ado-cli init` to create one, \
-                             or set env var {env_key}"
+                            "no {CONFIG_FILE} found (searched: {searched}). \
+                             Run `ado-cli init` to create one, or set env var {env_key}"
                         )
                     }
                 })
@@ -79,6 +80,20 @@ pub fn find_config_file() -> Option<PathBuf> {
             return None;
         }
     }
+}
+
+/// Build a comma-separated list of directories we walked looking for .ado.toml.
+fn searched_dirs() -> String {
+    let mut dirs = Vec::new();
+    if let Ok(mut dir) = env::current_dir() {
+        loop {
+            dirs.push(dir.display().to_string());
+            if !dir.pop() {
+                break;
+            }
+        }
+    }
+    dirs.join(", ")
 }
 
 fn load_toml(path: &Path) -> Result<TomlConfig> {
