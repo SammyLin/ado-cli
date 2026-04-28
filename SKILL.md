@@ -1,6 +1,6 @@
 ---
 name: ado-cli
-description: Query AND mutate Azure DevOps work items (sprint cards, iterations, single items with description + acceptance criteria, plus create / update / delete / list / comment CRUD) via the local `ado` CLI. Use when the user asks about "sprint 卡片" / "ADO 卡片" / "current sprint" / "iteration" / "work item #N" / a `dev.azure.com` URL, OR wants to break a story into Tasks ("拆 task" / "建 task under #N"), OR update/close/delete a card, OR add/read a comment on a card. The `ado` binary wraps the ADO REST API and reads `ADO_ORG`/`ADO_PROJECT`/`ADO_TEAM`/`ADO_PAT` from env or a `.env` file in the cwd (or any parent dir).
+description: Query AND mutate Azure DevOps work items (sprint cards, iterations, single items with description + acceptance criteria, plus create / update / delete / list / comment CRUD / link management) via the local `ado` CLI. Use when the user asks about "sprint 卡片" / "ADO 卡片" / "current sprint" / "iteration" / "work item #N" / a `dev.azure.com` URL, OR wants to break a story into Tasks ("拆 task" / "建 task under #N"), OR update/close/delete a card, OR add/read a comment on a card, OR link/unlink work items. The `ado` binary wraps the ADO REST API and reads `ADO_ORG`/`ADO_PROJECT`/`ADO_TEAM`/`ADO_PAT` from env or a `.env` file in the cwd (or any parent dir).
 ---
 
 # ado-cli skill
@@ -21,6 +21,7 @@ Trigger on any of these signals:
 - "幫我建 task under #N" / "把 #N 拆成幾張 task" / "create a Task / Bug under …"
 - "把 #N 改成 Done" / "close #N" / "set #N to Active" / "reassign #N to …"
 - "在 #N 留個 comment" / "add a comment to #N" / "看一下 #N 的留言 / comment list"
+- "把 #N 跟 #M 連起來" / "link #N to #M" / "add related link" / "remove link"
 
 Skip this skill if:
 - The user is on a project not configured in `~/.env` / env vars (the `ADO_*` vars target one specific org+project+team).
@@ -107,6 +108,19 @@ Updates an existing comment's text.
 #### `ado-cli item comment delete <id> --comment-id <N>`
 Deletes a comment.
 
+#### `ado-cli item link list <id> [--json]`
+Lists all links (relations) on a work item — parent/child, related, duplicates, etc. Non-work-item links (hyperlinks, artifacts) are also shown.
+
+#### `ado-cli item link add <id> --target <TARGET_ID> --type <TYPE> [--comment <TEXT>] [--json]`
+Adds a link between two work items.
+
+Available link types: `parent`, `child`, `related`, `duplicate`, `duplicate-of`, `predecessor`, `successor`.
+
+- `--comment` — optional comment on the link (visible in ADO's link detail).
+
+#### `ado-cli item link remove <id> --target <TARGET_ID> --type <TYPE>`
+Removes a link. The CLI fetches the work item's relations, finds the matching link by type + target URL, and issues a `remove` patch at the correct index.
+
 ## Recipes
 
 **"Close #1202 with audit comment"**
@@ -160,6 +174,26 @@ ado-cli item comment add 1197 --text 'Broken into T1 (#1200) ... T4 (#1203). Rea
 ado-cli item comment add 1197 --text 'Schema for tenant_questionnaires.final_deadline merged in commit abc123.'
 ```
 
+**"Link #1196 as related to #1200"**
+```
+ado-cli item link add 1196 --target 1200 --type related --comment 'See also'
+```
+
+**"Make #1200 a child of #1196"**
+```
+ado-cli item link add 1196 --target 1200 --type child
+```
+
+**"Remove the related link between #1196 and #1200"**
+```
+ado-cli item link remove 1196 --target 1200 --type related
+```
+
+**"List all links on #1196"**
+```
+ado-cli item link list 1196
+```
+
 **"List Sprint 2 cards"**
 ```
 ado-cli sprint list --iteration 'i-Sprint 2'
@@ -190,4 +224,4 @@ When the user asks to "拆 #N into tasks":
 ## Out of scope (do NOT improvise)
 
 - Cross-team queries — `ADO_TEAM` targets a single team. To query another team, override the env var for that call.
-- Attachments, history, linking — not implemented. Source at `~/workspace/ado-cli` if needed.
+- Attachments, history — not implemented. Source at `~/workspace/ado-cli` if needed.
