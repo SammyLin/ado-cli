@@ -120,6 +120,19 @@ ado-cli item comment update 1197 --comment-id 42 --text 'Updated'  # update
 ado-cli item comment delete 1197 --comment-id 42                    # delete
 ```
 
+### Links
+
+```bash
+ado-cli item link list 1196                                         # list all links
+ado-cli item link add 1196 --target 1200 --type related             # add related link
+ado-cli item link add 1196 --target 1200 --type child               # add child link
+ado-cli item link add 1196 --target 1200 --type parent              # add parent link
+ado-cli item link add 1196 --target 1200 --type related --comment 'See also'  # with comment
+ado-cli item link remove 1196 --target 1200 --type related          # remove link
+```
+
+Available link types: `parent`, `child`, `related`, `duplicate`, `duplicate-of`, `predecessor`, `successor`.
+
 ### Notes on `--assignee`
 
 ADO requires the `uniqueName` (e.g. `user@example.com`), not the display name. To find it:
@@ -145,7 +158,8 @@ ado-cli/
 │       ├── iterations.rs     # ado-cli iterations
 │       ├── sprint.rs         # ado-cli sprint list
 │       ├── item.rs           # ado-cli item show/create/update/delete/list
-│       └── comment.rs        # ado-cli item comment list/add/update/delete
+│       ├── comment.rs        # ado-cli item comment list/add/update/delete
+│       └── link.rs           # ado-cli item link list/add/remove
 ├── .github/workflows/
 │   ├── test.yml              # CI: cargo test on push/PR
 │   └── release.yml           # Release: cross-compile + homebrew tap
@@ -171,6 +185,9 @@ ado-cli/
 | `ado-cli item comment add <id> --text <t>` | Add a comment |
 | `ado-cli item comment update <id> --comment-id <n> --text <t>` | Update a comment |
 | `ado-cli item comment delete <id> --comment-id <n>` | Delete a comment |
+| `ado-cli item link list <id>` | List links on a work item |
+| `ado-cli item link add <id> --target <n> --type <t>` | Add a link to another work item |
+| `ado-cli item link remove <id> --target <n> --type <t>` | Remove a link |
 
 All read/write commands accept `--json` for machine-readable output.
 

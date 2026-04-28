@@ -138,6 +138,11 @@ enum ItemCmd {
         #[command(subcommand)]
         cmd: CommentCmd,
     },
+    /// Link operations on a work item.
+    Link {
+        #[command(subcommand)]
+        cmd: LinkCmd,
+    },
 }
 
 #[derive(Subcommand)]
@@ -173,6 +178,41 @@ enum CommentCmd {
         /// Comment ID to delete.
         #[arg(long)]
         comment_id: u64,
+    },
+}
+
+#[derive(Subcommand)]
+enum LinkCmd {
+    /// List links (relations) on a work item.
+    List {
+        id: u64,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Add a link between two work items.
+    Add {
+        id: u64,
+        /// Target work item ID to link to.
+        #[arg(long)]
+        target: u64,
+        /// Link type: parent, child, related, duplicate, duplicate-of, predecessor, successor.
+        #[arg(long = "type")]
+        link_type: String,
+        /// Optional comment on the link.
+        #[arg(long)]
+        comment: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Remove a link between two work items.
+    Remove {
+        id: u64,
+        /// Target work item ID to unlink.
+        #[arg(long)]
+        target: u64,
+        /// Link type to remove.
+        #[arg(long = "type")]
+        link_type: String,
     },
 }
 
@@ -254,6 +294,15 @@ fn main() -> Result<()> {
             ItemCmd::List { assignee, state, r#type, iteration, json } => {
                 commands::item::run_list(&client, assignee, state, r#type, iteration, json)
             }
+            ItemCmd::Link { cmd } => match cmd {
+                LinkCmd::List { id, json } => commands::link::run_list(&client, id, json),
+                LinkCmd::Add { id, target, link_type, comment, json } => {
+                    commands::link::run_add(&client, id, target, &link_type, comment.as_deref(), json)
+                }
+                LinkCmd::Remove { id, target, link_type } => {
+                    commands::link::run_remove(&client, id, target, &link_type)
+                }
+            },
         },
     }
 }

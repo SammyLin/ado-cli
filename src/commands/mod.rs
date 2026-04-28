@@ -1,6 +1,7 @@
 pub mod comment;
 pub mod item;
 pub mod iterations;
+pub mod link;
 pub mod sprint;
 
 /// Crude HTML → text: drop tags, decode common entities.
