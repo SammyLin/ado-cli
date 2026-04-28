@@ -40,14 +40,24 @@ cargo install --path .
 
 ## Configuration
 
-dotenvy auto-loads a `.env` from the cwd or any parent directory (`~/.env` works globally). Required keys:
+Run `ado-cli init` to create a `.ado.toml` in the current directory:
 
 ```bash
-ADO_ORG=MyOrg
-ADO_PROJECT=MyProject
-ADO_TEAM="My Team"        # quote values with spaces
-ADO_PAT=<your PAT>
+ado-cli init
 ```
+
+This will interactively prompt for your org, project, team, and PAT, then write `.ado.toml`:
+
+```toml
+org = "MyOrg"
+project = "MyProject"
+team = "My Team"
+pat = "<your PAT>"
+```
+
+The CLI searches for `.ado.toml` starting from the current directory and walking up to parent directories (similar to `.gitignore`). Add `.ado.toml` to your `.gitignore` — it contains your PAT.
+
+**Fallback:** Environment variables (`ADO_ORG`, `ADO_PROJECT`, `ADO_TEAM`, `ADO_PAT`) and `.env` files are still supported as fallback per field.
 
 Create / regenerate PATs at `https://dev.azure.com/<ORG>/_usersSettings/tokens`.
 
@@ -167,7 +177,7 @@ ado-cli/
 │   └── release.yml           # Release: cross-compile + homebrew tap
 ├── Cargo.toml
 ├── SKILL.md                  # AI assistant skill reference
-├── .env.example
+├── .ado.toml.example
 └── README.md
 ```
 
@@ -175,6 +185,7 @@ ado-cli/
 
 | Command | Description |
 |---------|-------------|
+| `ado-cli init` | Create `.ado.toml` config interactively |
 | `ado-cli iterations` | List iterations with timeframe and dates |
 | `ado-cli sprint list` | List work items in current sprint |
 | `ado-cli sprint list --iteration <name>` | List work items in a named sprint |

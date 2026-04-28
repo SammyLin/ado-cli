@@ -1,0 +1,7 @@
+# Run `ado-cli init` to generate this file interactively.
+# PAT requires at least: Work Items (Read), and (Read & Write) for mutations.
+
+org = "MyOrg"
+project = "MyProject"
+team = "My Team"
+pat = ""

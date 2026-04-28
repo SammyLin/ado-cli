@@ -21,6 +21,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
+    /// Initialize a .ado.toml config file in the current directory.
+    Init,
     /// List iterations (sprints) for the configured team.
     Iterations {
         #[arg(long)]
@@ -233,10 +235,17 @@ enum LinkCmd {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let cfg = Config::from_env()?;
+
+    // Init doesn't need config.
+    if matches!(cli.cmd, Cmd::Init) {
+        return run_init();
+    }
+
+    let cfg = Config::load()?;
     let client = AdoClient::new(cfg)?;
 
     match cli.cmd {
+        Cmd::Init => unreachable!(),
         Cmd::Iterations { json } => commands::iterations::run(&client, json),
         Cmd::Sprint { cmd } => match cmd {
             SprintCmd::List { iteration, json } => commands::sprint::run(&client, iteration, json),
@@ -323,4 +332,48 @@ fn main() -> Result<()> {
             },
         },
     }
+}
+
+fn run_init() -> Result<()> {
+    use crate::config::CONFIG_FILE;
+    use std::io::{self, BufRead, Write};
+    use std::path::Path;
+
+    let path = Path::new(CONFIG_FILE);
+    if path.exists() {
+        eprintln!("{CONFIG_FILE} already exists. Overwrite? [y/N] ");
+        io::stdout().flush()?;
+        let mut line = String::new();
+        io::stdin().lock().read_line(&mut line)?;
+        if !line.trim().eq_ignore_ascii_case("y") {
+            eprintln!("aborted.");
+            return Ok(());
+        }
+    }
+
+    let org = prompt("Organization (ADO_ORG)")?;
+    let project = prompt("Project (ADO_PROJECT)")?;
+    let team = prompt("Team (ADO_TEAM)")?;
+    let pat = prompt("Personal Access Token (ADO_PAT)")?;
+
+    let content = format!(
+        "org = \"{org}\"\nproject = \"{project}\"\nteam = \"{team}\"\npat = \"{pat}\"\n"
+    );
+    std::fs::write(path, &content)?;
+    println!("wrote {CONFIG_FILE}");
+    println!("hint: add {CONFIG_FILE} to .gitignore (it contains your PAT)");
+    Ok(())
+}
+
+fn prompt(label: &str) -> Result<String> {
+    use std::io::{self, BufRead, Write};
+    eprint!("{label}: ");
+    io::stderr().flush()?;
+    let mut line = String::new();
+    io::stdin().lock().read_line(&mut line)?;
+    let val = line.trim().to_string();
+    if val.is_empty() {
+        return Err(anyhow::anyhow!("{label} cannot be empty"));
+    }
+    Ok(val)
 }

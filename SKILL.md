@@ -29,10 +29,10 @@ Skip this skill if:
 ## Prerequisites — verify before invoking
 
 1. Binary exists: `which ado-cli` should print `/Users/<user>/.cargo/bin/ado-cli`. If missing: `cd ~/workspace/ado-cli && cargo install --path . --force`.
-2. Env vars set. Either:
-   - Persistent: a `.env` in the cwd OR a parent directory (typically `~/.env`) with `ADO_ORG` / `ADO_PROJECT` / `ADO_TEAM` / `ADO_PAT` (see `~/workspace/ado-cli/.env.example`), OR
-   - Per-call: prefix the command with `ADO_PAT='…' ado …`
-   - **Quote values that contain spaces**: `ADO_TEAM="My Team"`. dotenvy without quotes can mis-parse the team name.
+2. Config set. Either:
+   - **Preferred**: a `.ado.toml` in the cwd or any parent directory. Run `ado-cli init` to create one interactively.
+   - **Fallback**: env vars `ADO_ORG` / `ADO_PROJECT` / `ADO_TEAM` / `ADO_PAT` (via shell or `.env` file).
+   - Each field falls back independently: `.ado.toml` fields take priority, missing fields fall back to env vars.
 3. The PAT must be live AND have the right scope:
    - **Read-only commands** (`iterations`, `sprint list`, `item show`, `item comment list`) — `Work Items: Read` is enough.
    - **Write commands** (`item create`, `item update`, `item comment add`) — need `Work Items: Read & Write`.

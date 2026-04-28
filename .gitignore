@@ -1,3 +1,4 @@
 /target
 /.env
+.ado.toml
 /Cargo.lock.user
