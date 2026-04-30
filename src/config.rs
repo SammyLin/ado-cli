@@ -28,7 +28,11 @@ impl Config {
     pub fn load() -> Result<Self> {
         let toml_cfg = find_config_file().and_then(|p| load_toml(&p).ok());
         let has_toml = toml_cfg.is_some();
-        let searched = if has_toml { String::new() } else { searched_dirs() };
+        let searched = if has_toml {
+            String::new()
+        } else {
+            searched_dirs()
+        };
 
         let get = |toml_val: Option<&str>, env_key: &str| -> Result<String> {
             if let Some(v) = toml_val.filter(|s| !s.trim().is_empty()) {
@@ -39,8 +43,13 @@ impl Config {
             env::var(env_key)
                 .map_err(|_| {
                     if has_toml {
-                        anyhow!("missing `{}` in {CONFIG_FILE} (and env var {env_key} not set)",
-                            env_key.strip_prefix("ADO_").unwrap_or(env_key).to_lowercase())
+                        anyhow!(
+                            "missing `{}` in {CONFIG_FILE} (and env var {env_key} not set)",
+                            env_key
+                                .strip_prefix("ADO_")
+                                .unwrap_or(env_key)
+                                .to_lowercase()
+                        )
                     } else {
                         anyhow!(
                             "no {CONFIG_FILE} found (searched: {searched}). \
@@ -63,7 +72,9 @@ impl Config {
             project: get(tc.and_then(|c| c.project.as_deref()), "ADO_PROJECT")?,
             team: get(tc.and_then(|c| c.team.as_deref()), "ADO_TEAM")?,
             pat: get(tc.and_then(|c| c.pat.as_deref()), "ADO_PAT")?,
-            repo: tc.and_then(|c| c.repo.clone()).filter(|s| !s.trim().is_empty()),
+            repo: tc
+                .and_then(|c| c.repo.clone())
+                .filter(|s| !s.trim().is_empty()),
         })
     }
 }
@@ -97,10 +108,8 @@ fn searched_dirs() -> String {
 }
 
 fn load_toml(path: &Path) -> Result<TomlConfig> {
-    let content = fs::read_to_string(path)
-        .with_context(|| format!("read {}", path.display()))?;
-    toml::from_str(&content)
-        .with_context(|| format!("parse {}", path.display()))
+    let content = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    toml::from_str(&content).with_context(|| format!("parse {}", path.display()))
 }
 
 #[cfg(test)]
@@ -112,7 +121,11 @@ mod tests {
     fn load_toml_parses_valid() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(CONFIG_FILE);
-        fs::write(&path, "org = \"O\"\nproject = \"P\"\nteam = \"T\"\npat = \"secret\"\n").unwrap();
+        fs::write(
+            &path,
+            "org = \"O\"\nproject = \"P\"\nteam = \"T\"\npat = \"secret\"\n",
+        )
+        .unwrap();
         let cfg = load_toml(&path).unwrap();
         assert_eq!(cfg.org.as_deref(), Some("O"));
         assert_eq!(cfg.pat.as_deref(), Some("secret"));

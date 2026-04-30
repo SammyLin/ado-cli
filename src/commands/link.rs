@@ -154,6 +154,76 @@ pub fn run_remove(client: &AdoClient, id: u64, target: u64, link_type: &str) -> 
     Ok(())
 }
 
+pub fn run_remove_commit(
+    client: &AdoClient,
+    id: u64,
+    commit: Option<&str>,
+    all: bool,
+) -> Result<()> {
+    if !all && commit.is_none() {
+        return Err(anyhow!("--commit <sha> or --all is required"));
+    }
+
+    // Need to delete from highest index first — removing index N shifts
+    // every index above it down by one, so delete top-down to keep the
+    // remaining indices valid.
+    let base = client.project_url(&format!("wit/workitems/{id}"));
+    let url = format!("{base}&$expand=relations");
+    let v = client.get(&url)?;
+    let relations = v
+        .get("relations")
+        .and_then(|r| r.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let mut targets: Vec<(usize, String)> = Vec::new();
+    for (i, r) in relations.iter().enumerate() {
+        let rel = r.get("rel").and_then(|s| s.as_str()).unwrap_or("");
+        let url_str = r.get("url").and_then(|s| s.as_str()).unwrap_or("");
+        if rel != "ArtifactLink" || !url_str.contains("/Git/Commit/") {
+            continue;
+        }
+        if let Some(prefix) = commit {
+            // Stored URLs use either '/' or '%2f' separators; pull the SHA off
+            // the tail and prefix-match so 7-char short SHAs match full ones.
+            let sha = url_str
+                .rsplit(|c| c == '/' || c == 'f')
+                .next()
+                .unwrap_or("")
+                .trim_start_matches('2')
+                .trim_start_matches('%');
+            let normalized_tail = url_str.replace("%2f", "/").replace("%2F", "/");
+            let tail_sha = normalized_tail.rsplit('/').next().unwrap_or("");
+            if tail_sha.starts_with(prefix) || sha.starts_with(prefix) {
+                targets.push((i, url_str.to_string()));
+            }
+        } else {
+            targets.push((i, url_str.to_string()));
+        }
+    }
+
+    if targets.is_empty() {
+        return Err(anyhow!("no matching commit links found on #{id}"));
+    }
+
+    // Sort descending by index so the patch ops don't invalidate each other.
+    targets.sort_by(|a, b| b.0.cmp(&a.0));
+
+    let ops: Vec<_> = targets
+        .iter()
+        .map(|(idx, _)| json!({ "op": "remove", "path": format!("/relations/{idx}") }))
+        .collect();
+    client.patch_json(&base, &json!(ops))?;
+
+    for (_, url) in &targets {
+        let normalized = url.replace("%2f", "/").replace("%2F", "/");
+        let sha = normalized.rsplit('/').next().unwrap_or(url);
+        let short = &sha[..sha.len().min(8)];
+        println!("removed commit link: #{id} → {short}");
+    }
+    Ok(())
+}
+
 pub fn run_add_commit(
     client: &AdoClient,
     id: u64,
@@ -175,7 +245,12 @@ pub fn run_add_commit(
         .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow!("could not resolve projectId for repo '{repo}'"))?;
 
-    let artifact_url = format!("vstfs:///Git/Commit/{project_id}/{repo_id}/{commit}");
+    // ADO needs URL-encoded separators (lowercase %2f); a bare '/' OR the
+    // uppercase %2F both round-trip to '/' on store, and the work item then
+    // shows "Commit link could not be read" in the web UI. Match the format
+    // ADO itself emits when it auto-links commits via "AB#<id>" — that one
+    // uses lowercase %2f and renders correctly.
+    let artifact_url = format!("vstfs:///Git/Commit/{project_id}%2f{repo_id}%2f{commit}");
     let mut link_value = json!({
         "rel": "ArtifactLink",
         "url": artifact_url,
@@ -192,7 +267,10 @@ pub fn run_add_commit(
     if json_out {
         println!("{}", serde_json::to_string_pretty(&v)?);
     } else {
-        println!("added commit link: #{id} → {repo}/{}", &commit[..commit.len().min(8)]);
+        println!(
+            "added commit link: #{id} → {repo}/{}",
+            &commit[..commit.len().min(8)]
+        );
     }
     Ok(())
 }

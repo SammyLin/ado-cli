@@ -115,9 +115,7 @@ enum ItemCmd {
         json: bool,
     },
     /// Delete a work item (moves to recycle bin).
-    Delete {
-        id: u64,
-    },
+    Delete { id: u64 },
     /// List work items matching filters (uses WIQL).
     List {
         /// Filter by assignee (uniqueName, e.g. user@example.com).
@@ -231,6 +229,18 @@ enum LinkCmd {
         #[arg(long = "type")]
         link_type: String,
     },
+    /// Remove a commit ArtifactLink from a work item. Matches by SHA prefix
+    /// (so a 7-char short SHA removes any link whose stored SHA starts with
+    /// it). Pass --all to remove every commit link on the item.
+    RemoveCommit {
+        id: u64,
+        /// Commit SHA (full or prefix). Mutually exclusive with --all.
+        #[arg(long, conflicts_with = "all")]
+        commit: Option<String>,
+        /// Remove every commit link on the work item.
+        #[arg(long)]
+        all: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -281,9 +291,12 @@ fn main() -> Result<()> {
                 CommentCmd::Add { id, text, json } => {
                     commands::comment::run_add(&client, id, &text, json)
                 }
-                CommentCmd::Update { id, comment_id, text, json } => {
-                    commands::comment::run_update(&client, id, comment_id, &text, json)
-                }
+                CommentCmd::Update {
+                    id,
+                    comment_id,
+                    text,
+                    json,
+                } => commands::comment::run_update(&client, id, comment_id, &text, json),
                 CommentCmd::Delete { id, comment_id } => {
                     commands::comment::run_delete(&client, id, comment_id)
                 }
@@ -315,23 +328,55 @@ fn main() -> Result<()> {
                 json,
             ),
             ItemCmd::Delete { id } => commands::item::run_delete(&client, id),
-            ItemCmd::List { assignee, state, r#type, iteration, json } => {
-                commands::item::run_list(&client, assignee, state, r#type, iteration, json)
-            }
+            ItemCmd::List {
+                assignee,
+                state,
+                r#type,
+                iteration,
+                json,
+            } => commands::item::run_list(&client, assignee, state, r#type, iteration, json),
             ItemCmd::Link { cmd } => match cmd {
                 LinkCmd::List { id, json } => commands::link::run_list(&client, id, json),
-                LinkCmd::Add { id, target, link_type, comment, json } => {
-                    commands::link::run_add(&client, id, target, &link_type, comment.as_deref(), json)
+                LinkCmd::Add {
+                    id,
+                    target,
+                    link_type,
+                    comment,
+                    json,
+                } => commands::link::run_add(
+                    &client,
+                    id,
+                    target,
+                    &link_type,
+                    comment.as_deref(),
+                    json,
+                ),
+                LinkCmd::AddCommit {
+                    id,
+                    repo,
+                    commit,
+                    comment,
+                    json,
+                } => {
+                    let repo = repo.as_deref().or(client.repo()).ok_or_else(|| {
+                        anyhow::anyhow!("--repo is required (or set `repo` in .ado.toml)")
+                    })?;
+                    commands::link::run_add_commit(
+                        &client,
+                        id,
+                        repo,
+                        &commit,
+                        comment.as_deref(),
+                        json,
+                    )
                 }
-                LinkCmd::AddCommit { id, repo, commit, comment, json } => {
-                    let repo = repo
-                        .as_deref()
-                        .or(client.repo())
-                        .ok_or_else(|| anyhow::anyhow!("--repo is required (or set `repo` in .ado.toml)"))?;
-                    commands::link::run_add_commit(&client, id, repo, &commit, comment.as_deref(), json)
-                }
-                LinkCmd::Remove { id, target, link_type } => {
-                    commands::link::run_remove(&client, id, target, &link_type)
+                LinkCmd::Remove {
+                    id,
+                    target,
+                    link_type,
+                } => commands::link::run_remove(&client, id, target, &link_type),
+                LinkCmd::RemoveCommit { id, commit, all } => {
+                    commands::link::run_remove_commit(&client, id, commit.as_deref(), all)
                 }
             },
         },
@@ -361,9 +406,8 @@ fn run_init() -> Result<()> {
     let pat = prompt("Personal Access Token (ADO_PAT)")?;
     let repo = prompt_optional("Default repo name (optional, press Enter to skip)")?;
 
-    let mut content = format!(
-        "org = \"{org}\"\nproject = \"{project}\"\nteam = \"{team}\"\npat = \"{pat}\"\n"
-    );
+    let mut content =
+        format!("org = \"{org}\"\nproject = \"{project}\"\nteam = \"{team}\"\npat = \"{pat}\"\n");
     if let Some(r) = &repo {
         content.push_str(&format!("repo = \"{r}\"\n"));
     }

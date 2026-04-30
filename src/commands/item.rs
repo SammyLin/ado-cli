@@ -39,12 +39,7 @@ pub struct UpdateArgs {
     pub comment: Option<String>,
 }
 
-pub fn run_update(
-    client: &AdoClient,
-    id: u64,
-    args: UpdateArgs,
-    json_out: bool,
-) -> Result<()> {
+pub fn run_update(client: &AdoClient, id: u64, args: UpdateArgs, json_out: bool) -> Result<()> {
     let mut ops: Vec<Value> = Vec::new();
     if let Some(v) = &args.state {
         ops.push(json!({ "op": "add", "path": "/fields/System.State", "value": v }));
@@ -53,7 +48,9 @@ pub fn run_update(
         ops.push(json!({ "op": "add", "path": "/fields/System.AssignedTo", "value": v }));
     }
     if let Some(v) = args.priority {
-        ops.push(json!({ "op": "add", "path": "/fields/Microsoft.VSTS.Common.Priority", "value": v }));
+        ops.push(
+            json!({ "op": "add", "path": "/fields/Microsoft.VSTS.Common.Priority", "value": v }),
+        );
     }
     if let Some(v) = &args.title {
         ops.push(json!({ "op": "add", "path": "/fields/System.Title", "value": v }));
@@ -117,7 +114,10 @@ pub fn run_list(
         conditions.push(format!("[System.State] = '{}'", s.replace('\'', "''")));
     }
     if let Some(t) = &work_item_type {
-        conditions.push(format!("[System.WorkItemType] = '{}'", t.replace('\'', "''")));
+        conditions.push(format!(
+            "[System.WorkItemType] = '{}'",
+            t.replace('\'', "''")
+        ));
     }
     if let Some(it) = &iteration {
         conditions.push(format!(
@@ -170,8 +170,14 @@ pub fn run_list(
         for w in &items {
             let id = w.get("id").and_then(|v| v.as_u64()).unwrap_or(0);
             let f = w.get("fields").cloned().unwrap_or(Value::Null);
-            let title = f.get("System.Title").and_then(|v| v.as_str()).unwrap_or("-");
-            let state = f.get("System.State").and_then(|v| v.as_str()).unwrap_or("-");
+            let title = f
+                .get("System.Title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("-");
+            let state = f
+                .get("System.State")
+                .and_then(|v| v.as_str())
+                .unwrap_or("-");
             let wtype = f
                 .get("System.WorkItemType")
                 .and_then(|v| v.as_str())
@@ -349,7 +355,5 @@ fn print_human(v: &Value) {
     }
 }
 
-
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

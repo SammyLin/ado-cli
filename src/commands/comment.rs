@@ -56,9 +56,13 @@ pub fn run_add(client: &AdoClient, id: u64, text: &str, json_out: bool) -> Resul
     Ok(())
 }
 
-
-
-pub fn run_update(client: &AdoClient, id: u64, comment_id: u64, text: &str, json_out: bool) -> Result<()> {
+pub fn run_update(
+    client: &AdoClient,
+    id: u64,
+    comment_id: u64,
+    text: &str,
+    json_out: bool,
+) -> Result<()> {
     let url = client.project_url_versioned(
         &format!("wit/workItems/{id}/comments/{comment_id}"),
         COMMENTS_API_VERSION,

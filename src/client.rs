@@ -90,7 +90,8 @@ impl AdoClient {
     }
 
     pub fn delete(&self, url: &str) -> Result<()> {
-        let resp = self.http
+        let resp = self
+            .http
             .delete(url)
             .header(AUTHORIZATION, &self.auth)
             .header(ACCEPT, "application/json")
@@ -201,7 +202,10 @@ mod tests {
 
     #[test]
     fn extract_html_title_none_when_missing() {
-        assert_eq!(extract_html_title("<html><body>no title</body></html>"), None);
+        assert_eq!(
+            extract_html_title("<html><body>no title</body></html>"),
+            None
+        );
     }
 
     #[test]
